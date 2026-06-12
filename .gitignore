@@ -36,3 +36,7 @@ coverage/
 # IDE
 .vscode/
 .idea/
+
+
+.claude/
+docs/
