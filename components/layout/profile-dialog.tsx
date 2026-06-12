@@ -52,23 +52,11 @@ export function ProfileDialog({
     }
     setUploading(true);
     try {
-      const { upload, s3Key } = await api<{
-        upload: { url: string; fields: Record<string, string> };
-        s3Key: string;
-      }>("/api/users/me/avatar", {
-        method: "POST",
-        body: { fileName: file.name, fileType: file.type, fileSize: file.size },
-      });
-
       const formData = new FormData();
-      Object.entries(upload.fields).forEach(([k, v]) => formData.append(k, v));
       formData.append("file", file);
-      const s3Res = await fetch(upload.url, { method: "POST", body: formData });
-      if (!s3Res.ok) throw new Error("Upload failed");
-
       const { user: updated } = await api<{ user: { image: string } }>("/api/users/me/avatar", {
         method: "POST",
-        body: { confirm: true, s3Key },
+        body: formData,
       });
       setImageOverride(updated.image);
       toast.success("Avatar updated");

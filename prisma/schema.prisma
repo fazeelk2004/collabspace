@@ -79,7 +79,6 @@ model User {
   passwordHash String
   name         String
   image        String?
-  avatarKey    String?
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -100,6 +99,7 @@ model User {
   chatReactions     ChatMessageReaction[]
   readReceipts      ChatReadReceipt[]
   dmParticipations  DirectMessageParticipant[]
+  avatarFile        StoredFile?                @relation("UserAvatar")
 }
 
 model Workspace {
@@ -303,14 +303,30 @@ model Attachment {
   fileName   String
   fileType   String
   fileSize   Int
-  s3Key      String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  uploader User? @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  task     Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader User?       @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  file     StoredFile?
 
   @@index([taskId])
+}
+
+/// Binary file storage in PostgreSQL (avatars + task attachments) — replaces S3.
+/// Each blob is owned by exactly one of attachment/avatarUser; both relations
+/// cascade-delete so bytes are never orphaned when the owner row is removed.
+model StoredFile {
+  id          String   @id @default(cuid())
+  data        Bytes
+  contentType String
+  size        Int
+  createdAt   DateTime @default(now())
+
+  attachment   Attachment? @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  attachmentId String?     @unique
+  avatarUser   User?       @relation("UserAvatar", fields: [avatarUserId], references: [id], onDelete: Cascade)
+  avatarUserId String?     @unique
 }
 
 // ─────────────────────────── Activity & Notifications ───────────────────────────

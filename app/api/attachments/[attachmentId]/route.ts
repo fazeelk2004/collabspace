@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { requireTaskAccess, can, PermissionError } from "@/lib/permissions";
-import { createDownloadUrl, deleteObject, s3Enabled } from "@/lib/s3";
 import { withErrorHandling, requireAuth, json, ApiError } from "@/lib/api-utils";
 
 type Params = { params: Promise<{ attachmentId: string }> };
@@ -12,16 +11,23 @@ async function loadAttachment(attachmentId: string) {
   return attachment;
 }
 
-/** Redirect to a short-lived signed S3 URL — membership is checked first. */
+/** Stream the attachment bytes from PostgreSQL — membership is checked first. */
 export const GET = withErrorHandling(async (_req: NextRequest, { params }: Params) => {
   const session = await requireAuth();
   const { attachmentId } = await params;
   const attachment = await loadAttachment(attachmentId);
   await requireTaskAccess(session.userId, attachment.taskId);
 
-  if (!s3Enabled()) throw new ApiError("File downloads are not configured", 503);
-  const url = await createDownloadUrl(attachment.s3Key, attachment.fileName);
-  return NextResponse.redirect(url);
+  const file = await prisma.storedFile.findUnique({ where: { attachmentId } });
+  if (!file) throw new ApiError("File data not found", 404);
+
+  return new NextResponse(new Uint8Array(file.data), {
+    headers: {
+      "Content-Type": file.contentType,
+      "Content-Length": String(file.size),
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(attachment.fileName)}"`,
+    },
+  });
 });
 
 export const DELETE = withErrorHandling(async (_req: NextRequest, { params }: Params) => {
@@ -34,7 +40,7 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }: Pa
     throw new PermissionError("You can only delete your own attachments");
   }
 
+  // Deleting the attachment cascade-deletes its StoredFile (FK onDelete: Cascade).
   await prisma.attachment.delete({ where: { id: attachmentId } });
-  if (s3Enabled()) await deleteObject(attachment.s3Key).catch(() => {});
   return json({ ok: true });
 });

@@ -626,7 +626,7 @@ function Footer() {
           <span className="font-medium text-slate-300">CollabSpace</span>
         </div>
         <p className="text-center">
-          Real-time team collaboration. Built with Next.js, Socket.io, PostgreSQL, Redis &amp; AWS.
+          Real-time team collaboration. Built by Fazeel Khan.
         </p>
       </div>
     </footer>

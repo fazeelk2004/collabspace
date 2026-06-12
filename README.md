@@ -1,10 +1,10 @@
 # CollabSpace
 
 **Real-time team collaboration platform** — Kanban boards, team chat, live presence and
-analytics in a multi-tenant SaaS, built for production deployment on AWS.
+analytics in a multi-tenant SaaS, deployable for free on Render.
 
 > Next.js 15 · React 19 · TypeScript · Socket.io · PostgreSQL/Prisma · Redis · Tailwind v4 ·
-> Docker · AWS ECS Fargate · GitHub Actions
+> Docker · Render
 
 ---
 
@@ -18,7 +18,7 @@ analytics in a multi-tenant SaaS, built for production deployment on AWS.
   labels, due dates, multi-assignees, filters and search. Optimistic UI with server re-sync.
 - **Real-time everything** — task moves, comments, presence, typing indicators and
   notifications broadcast over Socket.io with the Redis adapter, so it works across multiple
-  ECS containers.
+  app instances.
 - **Team chat** — workspace channels, per-board discussion channels, direct messages,
   reactions, edit/delete, read receipts, @mentions, unread counts.
 - **Live presence** — online members, "currently viewing board", "editing this task",
@@ -27,8 +27,8 @@ analytics in a multi-tenant SaaS, built for production deployment on AWS.
   personal socket room, with unread badge and mark-all-read.
 - **Activity log** — append-only audit trail shown on the board, in the task panel and on a
   workspace-wide live feed.
-- **Attachments** — browser uploads straight to a private S3 bucket via presigned POST;
-  downloads via short-lived signed URLs, gated by workspace membership.
+- **Attachments & avatars** — uploaded straight to the app and stored as bytes in
+  PostgreSQL; downloads are streamed back through the API, gated by workspace membership.
 - **Analytics** — completion trend, tasks by priority/member, overdue counts (Recharts).
 - **Polished UI** — Tailwind v4 + shadcn-style design system, dark/light themes,
   Framer Motion animations, skeleton loading, empty states, responsive down to mobile.
@@ -45,25 +45,25 @@ analytics in a multi-tenant SaaS, built for production deployment on AWS.
 ## 🏗 Architecture
 
 ```
-Browser ── HTTPS/WSS ──► ALB (sticky) ──► ECS Fargate tasks (Next.js + Socket.io, one port)
-                                              │            │
-                                              ▼            ▼
-                                      RDS PostgreSQL   ElastiCache Redis
-                                      (system of       (socket adapter, presence,
-                                       record)          rate limiting)
-                                              │
-                                              ▼
-                                          S3 (private attachments, signed URLs)
+Browser ── HTTPS/WSS ──► Render Web Service (Next.js + Socket.io, one port)
+                                  │            │
+                                  ▼            ▼
+                            PostgreSQL      Redis (Key Value)
+                            (system of      (socket adapter, presence,
+                             record +        rate limiting)
+                             file bytes)
 ```
 
-- One container image serves both HTTP and WebSocket traffic (custom server in
+- One process serves both HTTP and WebSocket traffic (custom server in
   [server/index.ts](server/index.ts)).
-- The **Socket.io Redis adapter** fans broadcasts out across all running containers.
+- The **Socket.io Redis adapter** fans broadcasts out across all running instances.
 - All writes go through REST API routes (Zod validation + permission checks), which then
   broadcast to socket rooms — one write path, one set of security checks.
-- Detailed docs: [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) ·
-  [docs/SOCKET_EVENTS.md](docs/SOCKET_EVENTS.md) · [docs/DATABASE.md](docs/DATABASE.md) ·
-  [docs/API.md](docs/API.md) · [docs/PROJECT_WORKING_EXPLAINED.md](docs/PROJECT_WORKING_EXPLAINED.md)
+- Avatars and task attachments are stored as `bytea` in PostgreSQL — no external object
+  store needed.
+- Detailed docs: [docs/SOCKET_EVENTS.md](docs/SOCKET_EVENTS.md) ·
+  [docs/DATABASE.md](docs/DATABASE.md) · [docs/API.md](docs/API.md) ·
+  [docs/PROJECT_WORKING_EXPLAINED.md](docs/PROJECT_WORKING_EXPLAINED.md)
 
 ## 🚀 Local setup
 
@@ -81,7 +81,7 @@ cp .env.example .env          # defaults already match docker-compose
 #    set AUTH_SECRET to any long random string
 
 # 4. Create the database schema
-npm run db:migrate            # or: npm run db:push
+npm run db:push               # syncs prisma/schema.prisma to the database
 
 # 5. (optional) Seed demo data
 npm run db:seed               # demo@collabspace.dev / demo1234
@@ -90,7 +90,7 @@ npm run db:seed               # demo@collabspace.dev / demo1234
 npm run dev                   # → http://localhost:3000
 ```
 
-To test the **production container** locally (same image ECS runs):
+To test the **production container** locally (the full stack in Docker):
 
 ```bash
 docker compose --profile full up --build
@@ -107,23 +107,23 @@ docker compose --profile full up --build
 
 ### Environment variables
 
-See [.env.example](.env.example). In production these come from **AWS Secrets Manager**,
-injected into the ECS task definition — never baked into the image.
+See [.env.example](.env.example). In production on Render these are set per service
+(`render.yaml` wires most of them automatically) — never baked into the image.
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string (RDS in prod) |
-| `REDIS_URL` | Redis connection string (ElastiCache in prod) |
+| `DATABASE_URL` | PostgreSQL connection string (also stores file/avatar bytes) |
+| `REDIS_URL` | Redis connection string |
 | `AUTH_SECRET` | HMAC secret for session JWTs |
-| `S3_BUCKET_NAME`, `AWS_REGION` | attachment storage (task IAM role provides credentials in prod) |
 | `NEXT_PUBLIC_APP_URL` | public URL, used for invite links and socket CORS |
 
-## ☁️ AWS deployment
+## ☁️ Deployment (Render, free)
 
-The full step-by-step guide lives in [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md):
-ECR → RDS → ElastiCache → S3 → Secrets Manager → ECS Fargate + ALB (WebSocket-aware,
-sticky sessions) → GitHub Actions (OIDC, no stored AWS keys) with a one-off Fargate task
-running `prisma migrate deploy` before each rolling deploy.
+The full step-by-step guide lives in [docs/RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md).
+In short: push to GitHub, then **New → Blueprint** in Render — [`render.yaml`](render.yaml)
+provisions the web service, PostgreSQL, and Redis (Key Value), runs `prisma db push` on
+build, and starts the custom Socket.io server. Set `NEXT_PUBLIC_APP_URL` to your live URL
+afterwards and you're done.
 
 ## 🧪 Testing
 
@@ -137,7 +137,7 @@ tests before any image is built.
 
 ## 🔮 Future improvements
 
-- Email notifications via AWS SES (invitation + mention digests)
+- Email notifications (invitation + mention digests)
 - Command palette (⌘K) with cross-workspace search
 - Playwright E2E suite for the core flows
 - Column drag-reordering and swimlanes

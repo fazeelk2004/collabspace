@@ -40,32 +40,12 @@ export function AttachmentsSection({ taskId, canUpload }: { taskId: string; canU
     }
     setUploading(true);
     try {
-      // 1. Ask the API for a presigned S3 POST.
-      const { upload: presigned, s3Key } = await api<{
-        upload: { url: string; fields: Record<string, string> };
-        s3Key: string;
-      }>(`/api/tasks/${taskId}/attachments`, {
-        method: "POST",
-        body: { fileName: file.name, fileType: file.type, fileSize: file.size },
-      });
-
-      // 2. Upload directly to S3 — bytes never touch our server.
+      // Upload the bytes straight to our API, which stores them in PostgreSQL.
       const formData = new FormData();
-      Object.entries(presigned.fields).forEach(([k, v]) => formData.append(k, v));
       formData.append("file", file);
-      const s3Res = await fetch(presigned.url, { method: "POST", body: formData });
-      if (!s3Res.ok) throw new Error("S3 upload failed");
-
-      // 3. Persist metadata.
       await api(`/api/tasks/${taskId}/attachments`, {
         method: "POST",
-        body: {
-          confirm: true,
-          s3Key,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-        },
+        body: formData,
       });
       toast.success("File uploaded");
       invalidate();

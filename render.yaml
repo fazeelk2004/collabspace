@@ -1,0 +1,44 @@
+# Render Blueprint — deploys CollabSpace as a single always-on web service plus
+# managed PostgreSQL and Redis (Key Value). Apply via the Render dashboard:
+# New → Blueprint → connect this repo. See docs/RENDER_DEPLOYMENT.md.
+services:
+  - type: web
+    name: collabspace
+    runtime: node
+    plan: free
+    # Build the app, then sync the schema to the database (creates tables on the
+    # first deploy). db push is idempotent on subsequent deploys.
+    buildCommand: npm ci && npm run build && npx prisma db push
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: collabspace-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: collabspace-redis
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      # Set this to your live URL (https://<service>.onrender.com) after the first
+      # deploy — it drives Socket.io CORS and invitation links.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+  - type: redis
+    name: collabspace-redis
+    plan: free
+    # Reachable only from Render services in this account, not the public internet.
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+databases:
+  - name: collabspace-db
+    plan: free
+    databaseName: collabspace
+    user: collabspace

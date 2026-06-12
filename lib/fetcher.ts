@@ -13,10 +13,19 @@ export async function api<T>(
   url: string,
   options: { method?: string; body?: unknown } = {}
 ): Promise<T> {
+  // FormData (file uploads) goes through untouched so the browser sets the
+  // multipart boundary; everything else is JSON-encoded.
+  const isForm = options.body instanceof FormData;
   const res = await fetch(url, {
     method: options.method ?? "GET",
-    headers: options.body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    headers:
+      options.body !== undefined && !isForm ? { "Content-Type": "application/json" } : undefined,
+    body:
+      options.body === undefined
+        ? undefined
+        : isForm
+          ? (options.body as FormData)
+          : JSON.stringify(options.body),
     credentials: "same-origin",
   });
 

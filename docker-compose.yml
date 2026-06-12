@@ -45,7 +45,6 @@ services:
       REDIS_URL: redis://redis:6379
       AUTH_SECRET: local-dev-secret-change-me
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      S3_DISABLED: "1"
     depends_on:
       postgres:
         condition: service_healthy
