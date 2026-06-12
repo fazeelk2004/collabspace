@@ -8,7 +8,9 @@ services:
     plan: free
     # Build the app, then sync the schema to the database (creates tables on the
     # first deploy). db push is idempotent on subsequent deploys.
-    buildCommand: npm ci && npm run build && npx prisma db push
+    # --include=dev: Render sets NODE_ENV=production, which otherwise makes npm
+    # skip devDependencies (tailwind, typescript) that `next build` needs.
+    buildCommand: npm ci --include=dev && npm run build && npx prisma db push
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
