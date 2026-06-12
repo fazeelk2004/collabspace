@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.985 0.002 247);
+  --foreground: oklch(0.215 0.015 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.215 0.015 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.215 0.015 262);
+  --primary: oklch(0.55 0.23 277);
+  --primary-foreground: oklch(0.985 0.002 247);
+  --secondary: oklch(0.955 0.005 247);
+  --secondary-foreground: oklch(0.305 0.015 262);
+  --muted: oklch(0.955 0.005 247);
+  --muted-foreground: oklch(0.55 0.012 257);
+  --accent: oklch(0.945 0.01 258);
+  --accent-foreground: oklch(0.305 0.015 262);
+  --destructive: oklch(0.6 0.21 25);
+  --destructive-foreground: oklch(0.985 0.002 247);
+  --border: oklch(0.91 0.005 247);
+  --input: oklch(0.91 0.005 247);
+  --ring: oklch(0.55 0.23 277);
+  --sidebar: oklch(0.97 0.003 247);
+  --sidebar-foreground: oklch(0.305 0.015 262);
+  --radius: 0.625rem;
+}
+
+/* Dark palette matched to the landing page: deep slate base, indigo→violet accent */
+.dark {
+  --background: oklch(0.14 0.028 262);
+  --foreground: oklch(0.93 0.008 255);
+  --card: oklch(0.18 0.03 263);
+  --card-foreground: oklch(0.93 0.008 255);
+  --popover: oklch(0.18 0.03 263);
+  --popover-foreground: oklch(0.93 0.008 255);
+  --primary: oklch(0.64 0.21 277);
+  --primary-foreground: oklch(0.985 0.002 247);
+  --secondary: oklch(0.23 0.03 263);
+  --secondary-foreground: oklch(0.93 0.008 255);
+  --muted: oklch(0.23 0.03 263);
+  --muted-foreground: oklch(0.66 0.018 260);
+  --accent: oklch(0.26 0.035 266);
+  --accent-foreground: oklch(0.93 0.008 255);
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(0.985 0.002 247);
+  --border: oklch(0.27 0.03 263);
+  --input: oklch(0.27 0.03 263);
+  --ring: oklch(0.64 0.21 277);
+  --sidebar: oklch(0.16 0.028 262);
+  --sidebar-foreground: oklch(0.85 0.012 255);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Thin, unobtrusive scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--color-muted-foreground) 25%, transparent);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--color-muted-foreground) 40%, transparent);
+}
+
+/* Typing indicator dots */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* Subtle shimmer for skeletons */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Landing-theme helpers shared across pages                           */
+/* ------------------------------------------------------------------ */
+
+/* Faint blueprint grid that fades out toward the bottom */
+.grid-overlay {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black, transparent);
+}
+
+/* Indigo → violet → fuchsia text */
+.gradient-text {
+  background-image: linear-gradient(to right, oklch(0.71 0.16 277), oklch(0.7 0.18 295), oklch(0.74 0.2 330));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Frosted card used on dark standalone pages (auth, invite, 404) */
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 60px -24px rgba(2, 6, 23, 0.8);
+}
+
+/* Drifting gradient orbs (pure CSS so server components can use them) */
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(40px, -30px); }
+}
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-50px, 40px); }
+}
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  pointer-events: none;
+}
+.orb-a { animation: orb-drift-a 18s ease-in-out infinite; }
+.orb-b { animation: orb-drift-b 22s ease-in-out infinite; }

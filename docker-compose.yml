@@ -1,0 +1,57 @@
+# Local development infrastructure: PostgreSQL + Redis.
+# Run the app itself with `npm run dev` on the host (fast HMR), or add the
+# `app` service below with `--profile full` for an end-to-end container test.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: collabspace-postgres
+    environment:
+      POSTGRES_USER: collabspace
+      POSTGRES_PASSWORD: collabspace
+      POSTGRES_DB: collabspace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collabspace"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: collabspace-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Full containerized app — mirrors the ECS deployment locally.
+  # Usage: docker compose --profile full up --build
+  app:
+    profiles: ["full"]
+    build: .
+    container_name: collabspace-app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://collabspace:collabspace@postgres:5432/collabspace?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: local-dev-secret-change-me
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      S3_DISABLED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
